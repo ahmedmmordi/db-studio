@@ -13,42 +13,45 @@ import { getMysqlPool } from "@/db-manager.js";
  */
 function formatMysqlDefaultValue(defaultValue: string, columnType: string): string | null {
 	const trimmed = defaultValue.trim().toLowerCase();
-	
+
 	// Check if it's a function call (contains parentheses)
 	if (trimmed.includes("(") && trimmed.includes(")")) {
 		// MySQL 8.0+ requires function calls to be wrapped in parentheses for DEFAULT
 		// But UUID() returns a string, not compatible with INT columns
 		if (trimmed.includes("uuid()")) {
 			// UUID() only makes sense for CHAR(36) or VARCHAR columns
-			if (!columnType.toUpperCase().includes("CHAR") && !columnType.toUpperCase().includes("TEXT")) {
+			if (
+				!columnType.toUpperCase().includes("CHAR") &&
+				!columnType.toUpperCase().includes("TEXT")
+			) {
 				return null;
 			}
 			return "(UUID())";
 		}
-		
+
 		// Other function calls like CURRENT_TIMESTAMP, NOW(), etc.
 		if (trimmed.includes("current_timestamp") || trimmed.includes("now()")) {
 			return "(CURRENT_TIMESTAMP)";
 		}
-		
+
 		if (trimmed.includes("current_date")) {
 			return "(CURRENT_DATE)";
 		}
-		
+
 		// Wrap other function calls in parentheses
 		return `(${defaultValue.trim()})`;
 	}
-	
+
 	// For non-function defaults (literals), return as-is
 	// Handle special keywords
 	if (trimmed === "null") {
 		return "NULL";
 	}
-	
+
 	if (trimmed === "true" || trimmed === "false") {
 		return trimmed === "true" ? "1" : "0";
 	}
-	
+
 	// Return the value as-is (could be a number, quoted string, etc.)
 	return defaultValue.trim();
 }
