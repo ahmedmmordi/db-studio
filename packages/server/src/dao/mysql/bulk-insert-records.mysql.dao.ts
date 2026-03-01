@@ -29,9 +29,6 @@ export const bulkInsertRecords = async ({
 				.map((col) => col.columnName),
 		);
 
-		let successCount = 0;
-		const errors: Array<{ recordIndex: number; error: string }> = [];
-
 		await connection.beginTransaction();
 
 		for (let i = 0; i < records.length; i++) {
@@ -53,23 +50,20 @@ export const bulkInsertRecords = async ({
 			try {
 				// biome-ignore lint/suspicious/noExplicitAny: mysql2 execute doesn't accept unknown[]
 				await connection.execute<ResultSetHeader>(insertSQL, values as any);
-				successCount++;
 			} catch (error) {
 				throw new HTTPException(500, {
-					message: `Failed: ${error instanceof Error ? error.message : String(error)}`,
+					message: `Failed to insert record ${i + 1}: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		}
 
 		await connection.commit();
 
-		const failureCount = errors.length;
 		return {
-			success: failureCount === 0,
-			message: `Bulk insert completed: ${successCount} records inserted${failureCount > 0 ? `, ${failureCount} failed` : ""}`,
-			successCount,
-			failureCount,
-			errors: errors.length > 0 ? errors : undefined,
+			success: true,
+			message: `Successfully inserted ${records.length} record${records.length !== 1 ? "s" : ""}`,
+			successCount: records.length,
+			failureCount: 0,
 		};
 	} catch (error) {
 		await connection.rollback();

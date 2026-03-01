@@ -112,9 +112,14 @@ export async function deleteTable(params: DeleteTableParams): Promise<DeleteTabl
 		if (cascade) {
 			// MySQL doesn't support CASCADE on DROP TABLE natively the same way PG does.
 			// We disable FK checks, drop the table, then re-enable.
-			await pool.execute("SET FOREIGN_KEY_CHECKS = 0");
-			await pool.execute(`DROP TABLE \`${tableName}\``);
-			await pool.execute("SET FOREIGN_KEY_CHECKS = 1");
+			const connection = await pool.getConnection();
+			try {
+				await connection.execute("SET FOREIGN_KEY_CHECKS = 0");
+				await connection.execute(`DROP TABLE \`${tableName}\``);
+				await connection.execute("SET FOREIGN_KEY_CHECKS = 1");
+			} finally {
+				connection.release();
+			}
 		} else {
 			await pool.execute(`DROP TABLE \`${tableName}\``);
 		}

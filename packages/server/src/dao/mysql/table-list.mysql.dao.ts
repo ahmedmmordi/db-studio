@@ -1,4 +1,3 @@
-import { HTTPException } from "hono/http-exception";
 import type { RowDataPacket } from "mysql2";
 import type { TableInfoSchemaType } from "shared/types";
 import type { DatabaseSchemaType } from "shared/types/database.types.js";
@@ -18,10 +17,8 @@ export async function getTablesList(
 	`;
 
 	const [tables] = await pool.execute<RowDataPacket[]>(tablesQuery);
-	if (!tables[0]) {
-		throw new HTTPException(500, {
-			message: "No tables returned from database",
-		});
+	if (!tables || tables.length === 0) {
+		return [];
 	}
 
 	const result: TableInfoSchemaType[] = await Promise.all(

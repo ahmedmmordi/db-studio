@@ -160,20 +160,25 @@ export async function forceDeleteRecords({
 		const fkConstraints = await getForeignKeyReferences(tableName, db);
 		let totalRelatedDeleted = 0;
 		const deletedTables = new Set<string>();
+		const visited = new Set<string>();
 
 		const deleteRelatedRecursively = async (
 			targetTable: string,
 			targetColumn: string,
 			values: unknown[],
+			visitedSet: Set<string>,
 		) => {
+			const key = `${targetTable}.${targetColumn}`;
+			if (visitedSet.has(key)) return;
+			visitedSet.add(key);
+
 			const nestedFks = await getForeignKeyReferences(targetTable, db);
 			for (const nestedFk of nestedFks) {
 				const nestedPlaceholders = values.map(() => "?").join(", ");
-				// biome-ignore lint/suspicious/noExplicitAny: mysql2 execute doesn't accept unknown[]
 				const [selectRows] = await connection.execute<RowDataPacket[]>(
 					`SELECT \`${nestedFk.referencedColumn}\` FROM \`${targetTable}\`
 					 WHERE \`${targetColumn}\` IN (${nestedPlaceholders})`,
-					values as any,
+					values as any[],
 				);
 				const nestedValues = (selectRows as Record<string, unknown>[]).map(
 					(row) => row[nestedFk.referencedColumn],
@@ -183,15 +188,15 @@ export async function forceDeleteRecords({
 						nestedFk.referencingTable,
 						nestedFk.referencingColumn,
 						nestedValues,
+						visitedSet,
 					);
 				}
 			}
 
 			const deletePlaceholders = values.map(() => "?").join(", ");
-			// biome-ignore lint/suspicious/noExplicitAny: mysql2 execute doesn't accept unknown[]
 			const [deleteResult] = await connection.execute<ResultSetHeader>(
 				`DELETE FROM \`${targetTable}\` WHERE \`${targetColumn}\` IN (${deletePlaceholders})`,
-				values as any,
+				values as any[],
 			);
 			totalRelatedDeleted += deleteResult.affectedRows;
 			deletedTables.add(targetTable);
@@ -203,6 +208,7 @@ export async function forceDeleteRecords({
 				constraint.referencingTable,
 				constraint.referencingColumn,
 				pkValues,
+				visited,
 			);
 		}
 

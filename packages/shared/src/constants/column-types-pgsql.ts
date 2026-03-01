@@ -38,9 +38,6 @@ export const PGSQL_COLUMN_TYPES = [
 	{ value: "point", label: "point" },
 	{ value: "line", label: "line" },
 	{ value: "polygon", label: "polygon" },
-	// Complex
-	{ value: "array", label: "array" },
-	{ value: "enum", label: "enum" },
 ] as const;
 
 export type PgsqlColumnType = (typeof PGSQL_COLUMN_TYPES)[number]["value"];

@@ -25,6 +25,15 @@ import { CONSTANTS } from "@/utils/constants";
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 
+const formatLocalTimestamp = (date: Date): string => {
+	const yyyy = date.getFullYear();
+	const mm = pad(date.getMonth() + 1);
+	const dd = pad(date.getDate());
+	const hh = pad(date.getHours());
+	const min = pad(date.getMinutes());
+	return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+};
+
 export const AddRecordField = ({
 	columnName,
 	dataTypeLabel,
@@ -292,7 +301,7 @@ export const AddRecordField = ({
 							value={
 								field.value ? new Date(field.value) : field.value === "" ? null : undefined
 							}
-							onChange={(date) => field.onChange(date ? date.toISOString() : "")}
+							onChange={(date) => field.onChange(date ? formatLocalTimestamp(date) : "")}
 							showTime={true}
 							isFormatted={false}
 							placeholder={columnDefault ?? "Select a date and time"}
@@ -306,13 +315,7 @@ export const AddRecordField = ({
 										className="inline-flex w-7 items-center justify-center rounded-e-md border border-input bg-background text-muted-foreground/80 text-sm outline-none transition-[color,box-shadow] hover:text-accent-foreground focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
 										type="button"
 										onClick={() => {
-											const now = new Date();
-											const yyyy = now.getFullYear();
-											const mm = pad(now.getMonth() + 1).padStart(2, "0");
-											const dd = pad(now.getDate()).padStart(2, "0");
-											const hh = pad(now.getHours()).padStart(2, "0");
-											const min = pad(now.getMinutes()).padStart(2, "0");
-											field.onChange(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+											field.onChange(formatLocalTimestamp(new Date()));
 										}}
 									>
 										<Clock
@@ -332,7 +335,7 @@ export const AddRecordField = ({
 			return (
 				<DatePicker
 					value={field.value ? new Date(field.value) : field.value === "" ? null : undefined}
-					onChange={(date) => field.onChange(date ? date.toISOString() : "")}
+					onChange={(date) => field.onChange(date ? formatLocalTimestamp(date) : "")}
 					showTime={true}
 					isFormatted={false}
 					placeholder={columnDefault ?? "Select a date and time"}
