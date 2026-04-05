@@ -8,7 +8,7 @@ export const META = {
 	//* site
 	SITE_DESCRIPTION: "The modern pgAdmin alternative that works with every database.",
 	SITE_KEYWORDS: ["database", "management", "studio", "spreadsheet", "ai", "sql"],
-	SITE_TITLE: "DB Studio",
+	SITE_TITLE: "dbstudio",
 	SITE_NAME: "dbstudio.sh",
 	SITE_URL: "https://dbstudio.sh",
 	SITE_X_LINK: "https://x.com/dbstudio_sh",
