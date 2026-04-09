@@ -13,6 +13,7 @@ export const META = {
 	SITE_URL: "https://dbstudio.sh",
 	SITE_X_LINK: "https://x.com/dbstudio_sh",
 	SITE_GITHUB_LINK: "https://github.com/husamql3/db-studio",
+	SITE_GITHUB_NEW_ISSUE_LINK: "https://github.com/husamql3/db-studio/issues/new/choose",
 	SITE_DOCS_LINK: "https://dbstudio.sh/docs",
 	SITE_CHANGELOG_LINK: "https://dbstudio.sh/changelog",
 	SITE_ROADMAP_LINK: "https://dbstudio.sh/roadmap",
