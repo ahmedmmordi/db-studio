@@ -8,102 +8,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies
 bun install
 
-# Development
-bun run dev              # All packages
-bun run dev:core         # Frontend only (http://localhost:3001)
-bun run dev:server       # Backend only (http://localhost:3333)
+# Development (starts both frontend :3001 and API :3333)
+bun run dev
 
-# Build
-bun run build            # All packages
-bun run build:core
-bun run build:server
+# Build all packages
+bun run build
 
-# Test
-bun run test             # All tests
-bun run test:server      # Server tests only
+# Run all tests
+bun run test
 
-# Run a single test file
-cd packages/server && bun run test -- tests/routes/tables.routes.test.ts
+# Lint & format (Biome)
+bun run check
 
-# Code quality
-bun run check            # Biome lint/format check (all packages)
-bun run typecheck        # TypeScript check
+# Type checking
+bun run typecheck
+
+# Initialize database schema
+bun run init-db:pgsql   # PostgreSQL
+bun run init-db:mysql   # MySQL
 ```
+
+### Running a single test (server package)
+
+```bash
+cd packages/server
+bun run test                         # all tests
+bun run test:watch                   # watch mode
+bun run test:coverage                # with coverage
+bunx vitest run src/path/to/file.test.ts  # single file
+```
+
+> **Dev ports**: Frontend (Vite) → `http://localhost:3001`, API → `http://localhost:3333`. Port 3333 also serves the static frontend build, but use 3001 during development.
 
 ## Architecture
 
-**Bun + Turbo monorepo.** Key packages:
+This is a **Bun + Turbo monorepo** with these packages:
 
-- `packages/server` — Hono HTTP server + CLI tool. Entry: `src/index.ts`
-- `packages/core` — React 19 frontend (Vite). Entry: `src/main.tsx`
-- `packages/shared` — Shared types and constants, imported by both server and core
-- `packages/proxy` — Cloudflare Workers proxy (AI rate limiting)
-
-Build order matters: `shared` → `core` → `server` (tsup copies `core/dist` into `server/dist/core-dist/` so the CLI ships a single artifact).
+| Package | Role |
+|---------|------|
+| `packages/server` | Hono API server + CLI (`npx db-studio`) |
+| `packages/core` | React 19 frontend (Vite, TanStack Router/Query/Table) |
+| `packages/shared` | Shared types and constants |
+| `packages/proxy` | Cloudflare Workers proxy (rate limiting via Upstash Redis) |
+| `www` | Marketing/docs site (TanStack Start + Fumadocs, deploys to Cloudflare) |
 
 ### Server (`packages/server`)
 
-**Route dispatch pattern** — routes use `new Hono<RouteEnv>()` (not `AppType`) to avoid circular imports. At runtime, `c.get("dbType")` determines whether to call PostgreSQL or MySQL DAOs:
+- **CLI entry**: `src/index.ts` — uses `commander` to parse flags (`--env`, `--port`, `--database-url`, etc.)
+- **Hono app**: `src/app.ts` (or wired via `src/db-manager.ts`)
+- **DB abstraction**: `src/db-manager.ts` exposes `getDbPool()` (PG) and `getMysqlPool()` (MySQL)
+- **DAOs**: `src/dao/*.dao.ts` (PG), `src/dao/mysql/*.mysql.dao.ts` (MySQL)
+- **Routes**: `src/routes/` — each route file uses `new Hono<RouteEnv>()` (not `AppType`) to avoid circular imports and to access `c.get("dbType")`
+- **Middleware**: `src/middlewares/` — sets `c.set("dbType", ...)` based on the connection URL
+- **Type mapping**: `src/utils/column.type.ts` — `mapPostgresToDataType` / `mapMysqlToDataType` → `CellVariant`
 
-```typescript
-const dbType = c.get("dbType");
-if (dbType === "mysql") {
-  await mysqlGetTablesList(db);
-} else {
-  await pgGetTablesList(db);
-}
-```
-
-**DAO structure:**
-- `src/dao/*.dao.ts` — PostgreSQL DAOs
-- `src/dao/mysql/*.mysql.dao.ts` — MySQL DAOs (backtick identifiers, `?` placeholders, no `RETURNING`)
-
-**Database type detection** happens in `src/db-manager.ts` by URL protocol: `postgres://` / `postgresql://` → `"pg"`, `mysql://` → `"mysql"`.
-
-**Key MySQL differences:**
-- Use `` ` `` backtick identifiers and `?` placeholders
-- No `RETURNING` clause
-- `tinyint(1)` maps to boolean (handled in `mapMysqlToDataType`)
-- FK violation errno is `1451` (PG: code `23503`)
-- `mysql2` `execute()` values require `as any` cast for `unknown[]`
-
-**Tests** live in `packages/server/tests/` (not co-located). `tests/setup.ts` mocks the DB manager. Some pre-existing test failures exist in `tests/dao/database-list.dao.test.ts` and `tests/middlewares/error-handler.test.ts` — not our bugs.
+**Multi-database routing pattern**: routes dispatch by `c.get("dbType")` which is `"pg" | "mysql"`. Each route calls the appropriate DAO based on this value.
 
 ### Frontend (`packages/core`)
 
-**TanStack ecosystem:** File-based routing (TanStack Router, route tree auto-generated in `routeTree.gen.ts`), TanStack Query for server state, TanStack Table for the data grid.
-
-**State:** Zustand stores in `src/stores/` for selected database/table and user preferences.
-
-**Vite proxy:** `/api` → `http://localhost:3333` during development.
-
-**Cell rendering:** `CellVariant = DataTypes = "text" | "boolean" | "number" | "enum" | "json" | "date" | "array"`.
+- TanStack Router with file-based routing in `src/routes/`
+- TanStack Query for server state; Zustand for client state (`src/stores/`)
+- shadcn/ui components; Monaco editor for JSON/query editing
+- API calls proxied from Vite dev server (`/api` → `:3333`)
+- Cell rendering: `CellVariant` = `"text" | "boolean" | "number" | "enum" | "json" | "date" | "array"`
 
 ### Shared (`packages/shared`)
 
-Single source of truth for types. Sub-path exports:
-- `shared/types` → `src/types/index.ts`
+Three export paths:
+- `shared` / `shared/types` → `src/types/index.ts`
 - `shared/constants` → `src/constants/index.ts`
 
-Column type mappers: `mapPostgresToDataType`, `mapMysqlToDataType`, `standardizeDataTypeLabel`, `standardizeMysqlDataTypeLabel`.
+### Key types
 
-## Environment Setup
+- `DATABASE_TYPES = ["pg", "mysql"]` in `database.types.ts`
+- `RouteEnv` — Hono env type that provides `c.get("dbType")`
+- `CellVariant` / `DataTypes` — used for table cell rendering
 
-Create `packages/server/.env`:
-```
-DATABASE_URL="postgresql://dbstudio:dbstudio@127.0.0.1:5434/dbstudio"
-# or for MySQL:
-# DATABASE_URL="mysql://root@127.0.0.1:3306/dbstudio"
-```
+## Tooling
 
-Spin up a local DB with Docker:
-```bash
-bun run init-db:pgsql   # PostgreSQL on port 5434
-bun run init-db:mysql   # MySQL on port 3306
-```
+- **Linter/Formatter**: Biome (tabs, 95-char width). Run `bun run check` to auto-fix.
+- **Tests**: Vitest (server package only). Path aliases `@` → `./src` and `shared` → `../shared/src` are configured in `vitest.config.ts`.
+- **Pre-commit hook**: runs `bun run check && bun run test && bun run build` via Husky.
+- **CI**: GitHub Actions on push to `stage` — build → biome check → tests.
 
-## Tooling Notes
+## Conventions
 
-- **Linter/formatter:** Biome (not ESLint/Prettier). Run `bun run check` to validate, `bun run check --write` is not a root script — cd into the package or use `bunx biome check --write`.
-- **Pre-commit hook:** Husky runs `check`, `test`, and `build` before every commit.
-- **Unused variables:** Convention in `packages/core` is to prefix with `_` (e.g., `_Foo`).
+- **Commit format**: `<type>(<scope>): <message>` (e.g., `feat(back): add mysql row insert`)
+- **Branch format**: `<type>/<issue-number>/<description>` (e.g., `feat/123/support-mysql`)
+- **MySQL specifics**: backtick identifiers, `?` placeholders, no `RETURNING` clause, FK violation errno `1451`
+- **PG specifics**: `$1/$2` placeholders, FK violation code `23503`
+- `mysql2`'s `execute()` requires `as any` cast when passing `unknown[]` arrays
