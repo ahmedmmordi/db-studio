@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useAlterColumn } from "@/hooks/use-alter-column";
 import { useSchemaEditStore } from "@/stores/schema-edit.store";
 import { useSheetStore } from "@/stores/sheet.store";
-import { SheetSidebar } from "../sheet-sidebar";
+import { SheetSidebar } from "@/components/sheet-sidebar";
 
 const editColumnFormSchema = z.object({
 	fields: z.tuple([

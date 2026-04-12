@@ -7,7 +7,7 @@ import { TableNameField } from "@/components/add-table/table-name-field";
 import { useCreateTable } from "@/hooks/use-create-table";
 import { useSheetStore } from "@/stores/sheet.store";
 import { type AddTableFormData, addTableSchema } from "@/types/add-table.type";
-import { SheetSidebar } from "../sheet-sidebar";
+import { SheetSidebar } from "@/components/sheet-sidebar";
 
 const defaultValues = {
 	tableName: "",

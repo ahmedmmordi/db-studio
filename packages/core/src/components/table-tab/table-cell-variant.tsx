@@ -26,8 +26,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateCellStore } from "@/stores/update-cell.store";
 import type { TableRecord } from "@/types/table.type";
-import { DatePicker } from "../ui/date-picker";
-import { Input } from "../ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Input } from "@/components/ui/input";
 
 interface CellVariantProps<TData> {
 	cell: Cell<TData, unknown>;
