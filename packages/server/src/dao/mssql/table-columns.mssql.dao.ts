@@ -19,6 +19,14 @@ interface ColumnRow {
 	referencedColumn: string | null;
 }
 
+function parseCheckConstraintValues(checkClause: string): string[] | null {
+	// Match all single-quoted string literals in the CHECK clause
+	// e.g. ([status]='active' OR [status]='inactive') → ['active', 'inactive']
+	const matches = checkClause.match(/'([^']+)'/g);
+	if (!matches || matches.length === 0) return null;
+	return matches.map((m) => m.slice(1, -1));
+}
+
 export async function getTableColumns({
 	tableName,
 	db,
@@ -90,20 +98,42 @@ export async function getTableColumns({
 		});
 	}
 
+	// Fetch CHECK constraints to simulate enum values
+	const checkResult = await pool.request().input("tableName", tableName).query(`
+		SELECT
+		  cc.COLUMN_NAME AS columnName,
+		  chk.CHECK_CLAUSE AS checkClause
+		FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS chk
+		JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE cc
+		  ON chk.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+		  AND cc.TABLE_SCHEMA = 'dbo'
+		WHERE cc.TABLE_NAME = @tableName
+		  AND cc.TABLE_CATALOG = DB_NAME()
+	`);
+
+	const checkEnumMap = new Map<string, string[]>();
+	for (const row of checkResult.recordset as { columnName: string; checkClause: string }[]) {
+		const values = parseCheckConstraintValues(row.checkClause);
+		if (values) {
+			checkEnumMap.set(row.columnName, values);
+		}
+	}
+
 	return (result.recordset as ColumnRow[]).map((r) => {
 		const dataType = r.dataType as string;
+		const enumValues = checkEnumMap.get(r.columnName) ?? null;
 
 		return {
 			columnName: r.columnName,
-			dataType: mapMssqlToDataType(dataType),
-			dataTypeLabel: standardizeMssqlDataTypeLabel(dataType),
+			dataType: enumValues ? "enum" : mapMssqlToDataType(dataType),
+			dataTypeLabel: enumValues ? "enum" : standardizeMssqlDataTypeLabel(dataType),
 			isNullable: Boolean(r.isNullable),
 			columnDefault: r.columnDefault ?? null,
 			isPrimaryKey: Boolean(r.isPrimaryKey),
 			isForeignKey: Boolean(r.isForeignKey),
 			referencedTable: r.referencedTable ?? null,
 			referencedColumn: r.referencedColumn ?? null,
-			enumValues: null, // SQL Server doesn't have native enum types
+			enumValues,
 		};
 	});
 }

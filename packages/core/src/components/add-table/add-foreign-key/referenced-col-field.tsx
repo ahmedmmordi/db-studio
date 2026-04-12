@@ -10,11 +10,14 @@ import { useTableCols } from "@/hooks/use-table-cols";
 import type { AddTableFormData } from "@/types/add-table.type";
 
 export const ReferencedColField = ({ index }: { index: number }) => {
-	const { tableCols, isLoadingTableCols } = useTableCols();
 	const { control } = useFormContext<AddTableFormData>();
 	const foreignKeyData = useWatch({
 		control,
 		name: `foreignKeys.${index}`,
+	});
+
+	const { tableCols, isLoadingTableCols } = useTableCols({
+		tableName: foreignKeyData?.referencedTable ?? "",
 	});
 
 	if (!foreignKeyData) return null;

@@ -1,5 +1,5 @@
 import type { ConnectionPool as MssqlPool } from "mssql";
-import * as mssql from "mssql";
+import mssql from "mssql";
 import type { Pool as MysqlPool } from "mysql2/promise";
 import { createPool as createMysqlPool } from "mysql2/promise";
 import { Pool, type PoolConfig } from "pg";

@@ -18,10 +18,21 @@ export async function addRecord({
 		tableColumns.filter((col) => col.dataTypeLabel === "boolean").map((col) => col.columnName),
 	);
 
-	const columns = Object.keys(data);
-	const values = Object.values(data).map((value, index) => {
-		const columnName = columns[index];
-		if (booleanColumns.has(columnName) && typeof value === "string") {
+	// Fetch identity columns and exclude them from the insert
+	const identityResult = await pool
+		.request()
+		.input("tableName", tableName)
+		.query(
+			`SELECT name FROM sys.columns WHERE object_id = OBJECT_ID(@tableName) AND is_identity = 1`,
+		);
+	const identityColumns = new Set(
+		(identityResult.recordset as { name: string }[]).map((r) => r.name),
+	);
+
+	const columns = Object.keys(data).filter((col) => !identityColumns.has(col));
+	const values = columns.map((col) => {
+		const value = data[col];
+		if (booleanColumns.has(col) && typeof value === "string") {
 			return value === "true" ? 1 : 0;
 		}
 		return value;

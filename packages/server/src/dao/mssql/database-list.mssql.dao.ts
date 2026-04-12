@@ -16,19 +16,20 @@ export async function getDatabasesList(): Promise<DatabaseInfoSchemaType[]> {
 
 	const result = await pool.request().query(`
 		SELECT
-		  name AS name,
+		  d.name AS name,
 		  CAST(
 		    ROUND(
-		      CAST(SUM(size) * 8.0 / 1024 AS DECIMAL(10,2)),
+		      CAST(SUM(mf.size) * 8.0 / 1024 AS DECIMAL(10,2)),
 		      2
 		    ) AS VARCHAR(20)
 		  ) + ' MB' AS size,
-		  SUSER_SNAME(owner_sid) AS owner,
-		  collation_name AS encoding
-		FROM sys.databases
-		WHERE database_id > 4  -- Exclude system databases
-		GROUP BY name, owner_sid, collation_name
-		ORDER BY name
+		  SUSER_SNAME(d.owner_sid) AS owner,
+		  d.collation_name AS encoding
+		FROM sys.databases d
+		JOIN sys.master_files mf ON d.database_id = mf.database_id
+		WHERE d.database_id > 4  -- Exclude system databases
+		GROUP BY d.name, d.owner_sid, d.collation_name
+		ORDER BY d.name
 	`);
 
 	if (!result.recordset[0]) {
