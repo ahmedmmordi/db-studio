@@ -23,6 +23,10 @@ export const ReferencedColField = ({
 		name: `foreignKeys.${index}`,
 	});
 
+	const { tableCols, isLoadingTableCols } = useTableCols({
+		tableName: foreignKeyData?.referencedTable ?? "",
+	});
+
 	if (!foreignKeyData) return null;
 
 	return (

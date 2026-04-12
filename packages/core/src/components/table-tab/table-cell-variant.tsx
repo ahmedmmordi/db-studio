@@ -50,7 +50,11 @@ export const TableTextCell = memo(
 		isSelected,
 	}: CellVariantProps<TableRecord>) => {
 		const { setUpdate, clearUpdate, getUpdate } = useUpdateCellStore();
-		const initialValue = cell.getValue() as string;
+		const rawValue = cell.getValue();
+		const initialValue =
+			rawValue !== null && rawValue !== undefined && typeof rawValue === "object"
+				? JSON.stringify(rawValue)
+				: (rawValue as string);
 
 		// Separate editor value from display value
 		const [editorValue, setEditorValue] = useState(() => initialValue ?? "");
