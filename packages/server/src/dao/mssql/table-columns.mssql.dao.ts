@@ -99,7 +99,10 @@ export async function getTableColumns({
 	}
 
 	// Fetch CHECK constraints to simulate enum values
-	const checkResult = await pool.request().input("tableName", tableName).query(`
+	const checkResult = await pool
+		.request()
+		.input("tableName", tableName)
+		.query(`
 		SELECT
 		  cc.COLUMN_NAME AS columnName,
 		  chk.CHECK_CLAUSE AS checkClause
